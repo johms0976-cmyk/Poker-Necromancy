@@ -1,0 +1,1413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Poker Necromancy — Dead Cards Fuel Living Hands</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=MedievalSharp&display=swap');
+
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0a0a0f;--bg2:#12121a;--bg3:#1a1a28;
+  --text:#d4c9b8;--text-dim:#7a7268;--text-bright:#f0e6d4;
+  --accent:#7b3fa0;--accent2:#a855f7;--accent-glow:rgba(123,63,160,.4);
+  --blood:#8b1a1a;--blood-bright:#c23030;
+  --bone:#d4c9a8;--bone-dim:#8a7e60;
+  --spectral:#3adfaf;--spectral-dim:#1a8a6a;--spectral-glow:rgba(58,223,175,.3);
+  --corrupt:#ff4444;--corrupt-glow:rgba(255,68,68,.3);
+  --gold:#d4a837;--gold-dim:#8a7020;
+  --hearts:#c23050;--diamonds:#4488cc;--clubs:#40a060;--spades:#9090a0;--bones:#3adfaf;
+  --card-w:80px;--card-h:112px;
+  --transition:all .3s ease;
+}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'Crimson Text',serif}
+button{font-family:'Cinzel',serif;cursor:pointer;border:none;outline:none;transition:var(--transition)}
+button:hover{filter:brightness(1.2)}
+button:active{transform:scale(.96)}
+
+/* ===== SCREENS ===== */
+.screen{display:none;width:100%;height:100%;position:absolute;top:0;left:0}
+.screen.active{display:flex}
+
+/* ===== TITLE SCREEN ===== */
+#title-screen{flex-direction:column;align-items:center;justify-content:center;
+  background:radial-gradient(ellipse at 50% 30%,#1a1030 0%,#0a0a0f 70%)}
+#title-screen h1{font-family:'Cinzel',serif;font-size:3.5rem;font-weight:900;
+  color:var(--accent2);text-shadow:0 0 40px var(--accent-glow),0 0 80px rgba(123,63,160,.2);
+  letter-spacing:.15em;margin-bottom:.2em}
+#title-screen .subtitle{font-family:'Crimson Text',serif;font-style:italic;font-size:1.3rem;
+  color:var(--spectral);opacity:.8;margin-bottom:2em;letter-spacing:.1em}
+#title-screen button{padding:.8em 2.5em;font-size:1.1rem;background:linear-gradient(135deg,var(--accent),#5a2080);
+  color:var(--text-bright);border:1px solid var(--accent2);border-radius:4px;margin:.4em;
+  text-transform:uppercase;letter-spacing:.15em}
+#title-screen .version{position:absolute;bottom:1em;font-size:.8rem;color:var(--text-dim)}
+
+/* ===== MAP SCREEN ===== */
+#map-screen{flex-direction:column;background:var(--bg)}
+.map-header{display:flex;justify-content:space-between;align-items:center;padding:.8em 1.5em;
+  background:var(--bg2);border-bottom:1px solid #2a2a3a}
+.map-header .player-info{display:flex;gap:1.5em;align-items:center;font-family:'Cinzel',serif;font-size:.85rem}
+.stat{display:flex;align-items:center;gap:.3em}
+.stat .label{color:var(--text-dim);font-size:.75rem}
+.hp-bar{width:120px;height:8px;background:#1a1a28;border-radius:4px;overflow:hidden;border:1px solid #2a2a3a}
+.hp-fill{height:100%;background:linear-gradient(90deg,var(--blood),var(--blood-bright));transition:width .5s ease;border-radius:4px}
+.map-body{flex:1;display:flex;align-items:center;justify-content:center;padding:2em;overflow:auto}
+.map-container{display:flex;flex-direction:column;gap:1em;align-items:center}
+.map-row{display:flex;gap:1em;justify-content:center}
+.map-node{width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:1.4rem;border:2px solid #2a2a3a;background:var(--bg2);transition:var(--transition);position:relative}
+.map-node.available{border-color:var(--accent2);cursor:pointer;animation:pulse 2s infinite}
+.map-node.available:hover{background:var(--accent);transform:scale(1.15);box-shadow:0 0 20px var(--accent-glow)}
+.map-node.completed{opacity:.4;border-color:#333}
+.map-node.current{border-color:var(--gold);box-shadow:0 0 15px rgba(212,168,55,.4)}
+.map-node.boss{border-color:var(--blood-bright)}
+.map-node .node-label{position:absolute;bottom:-18px;font-size:.55rem;color:var(--text-dim);
+  font-family:'Cinzel',serif;white-space:nowrap}
+@keyframes pulse{0%,100%{box-shadow:0 0 5px var(--accent-glow)}50%{box-shadow:0 0 20px var(--accent-glow)}}
+
+/* ===== COMBAT SCREEN ===== */
+#combat-screen{flex-direction:column;background:var(--bg)}
+.combat-top{display:flex;justify-content:space-between;align-items:flex-start;padding:.6em 1em;
+  background:var(--bg2);border-bottom:1px solid #2a2a3a}
+.enemy-area{display:flex;gap:1em;align-items:center}
+.enemy-card{background:var(--bg3);border:2px solid var(--blood);border-radius:8px;padding:.8em 1em;
+  text-align:center;min-width:120px;position:relative}
+.enemy-card .enemy-name{font-family:'Cinzel',serif;font-size:.85rem;color:var(--blood-bright);margin-bottom:.3em}
+.enemy-card .enemy-hp-bar{width:100%;height:6px;background:#1a1a28;border-radius:3px;overflow:hidden;margin-top:.3em}
+.enemy-card .enemy-hp-fill{height:100%;background:linear-gradient(90deg,#882020,#cc3030);transition:width .5s ease}
+.enemy-card .enemy-intent{font-size:.7rem;color:var(--gold);margin-top:.3em;font-style:italic}
+.player-stats{display:flex;gap:1em;align-items:center;font-size:.8rem;font-family:'Cinzel',serif}
+.player-stats .stat-box{background:var(--bg3);padding:.4em .8em;border-radius:4px;border:1px solid #2a2a3a}
+
+/* Game table */
+.game-table{flex:1;display:flex;flex-direction:column;padding:.5em 1em;gap:.4em;overflow:hidden}
+.zone{display:flex;flex-direction:column;align-items:center}
+.zone-label{font-family:'Cinzel',serif;font-size:.65rem;color:var(--text-dim);letter-spacing:.15em;
+  text-transform:uppercase;margin-bottom:.3em}
+
+/* Graveyard */
+.graveyard-zone{min-height:100px}
+.graveyard-slots{display:flex;gap:6px;justify-content:center;flex-wrap:wrap}
+.graveyard-slot{width:60px;height:84px;border:1px dashed #2a2a3a;border-radius:4px;display:flex;
+  align-items:center;justify-content:center;font-size:.6rem;color:#333;position:relative}
+
+/* Play area */
+.play-zone{min-height:100px}
+.played-cards{display:flex;gap:6px;justify-content:center;min-height:90px}
+.hand-result{font-family:'Cinzel',serif;font-size:1rem;color:var(--gold);margin-top:.2em;min-height:1.4em;
+  text-shadow:0 0 10px rgba(212,168,55,.3)}
+
+/* Hand */
+.hand-zone{min-height:110px}
+.hand-cards{display:flex;gap:4px;justify-content:center;flex-wrap:wrap}
+
+/* Actions */
+.action-bar{display:flex;gap:.5em;justify-content:center;padding:.5em;flex-wrap:wrap}
+.action-bar button{padding:.5em 1em;font-size:.7rem;background:var(--bg3);color:var(--text);
+  border:1px solid #2a2a3a;border-radius:4px;text-transform:uppercase;letter-spacing:.1em}
+.action-bar button:disabled{opacity:.3;cursor:not-allowed}
+.action-bar button.primary{background:linear-gradient(135deg,var(--accent),#5a2080);border-color:var(--accent2)}
+.action-bar button.necro{background:linear-gradient(135deg,#1a4a3a,#0a2a1a);border-color:var(--spectral-dim);color:var(--spectral)}
+.action-bar button.danger{background:linear-gradient(135deg,#4a1a1a,#2a0a0a);border-color:var(--blood);color:var(--blood-bright)}
+
+/* ===== CARDS ===== */
+.card{width:var(--card-w);height:var(--card-h);border-radius:6px;position:relative;cursor:pointer;
+  transition:all .2s ease;display:flex;flex-direction:column;align-items:center;justify-content:space-between;
+  padding:4px 6px;user-select:none;border:2px solid #3a3a4a;flex-shrink:0}
+.card .card-bg{position:absolute;inset:0;border-radius:4px;z-index:0}
+.card>*{position:relative;z-index:1}
+.card.hearts .card-bg{background:linear-gradient(160deg,#1a0a10,#200a15)}
+.card.diamonds .card-bg{background:linear-gradient(160deg,#0a1020,#0a1530)}
+.card.clubs .card-bg{background:linear-gradient(160deg,#0a1a10,#0a2015)}
+.card.spades .card-bg{background:linear-gradient(160deg,#101018,#151520)}
+.card.bones .card-bg{background:linear-gradient(160deg,#0a1a18,#0a2520)}
+.card .rank{font-family:'Cinzel',serif;font-size:1.1rem;font-weight:700;width:100%;text-align:left}
+.card .suit-icon{font-size:1.6rem;line-height:1}
+.card .card-power{font-size:.55rem;width:100%;text-align:right;color:var(--text-dim)}
+.card.hearts{border-color:#4a2030;color:var(--hearts)}
+.card.hearts .rank{color:var(--hearts)}
+.card.diamonds{border-color:#204060;color:var(--diamonds)}
+.card.diamonds .rank{color:var(--diamonds)}
+.card.clubs{border-color:#204a30;color:var(--clubs)}
+.card.clubs .rank{color:var(--clubs)}
+.card.spades{border-color:#3a3a50;color:var(--spades)}
+.card.spades .rank{color:var(--spades)}
+.card.bones{border-color:#1a4a3a;color:var(--bones)}
+.card.bones .rank{color:var(--bones)}
+.card.selected{transform:translateY(-10px);border-color:var(--gold);box-shadow:0 0 15px rgba(212,168,55,.3)}
+.card.graveyard-card{width:60px;height:84px;opacity:.75;border-style:solid}
+.card.graveyard-card .rank{font-size:.9rem}
+.card.graveyard-card .suit-icon{font-size:1.2rem}
+.card.graveyard-card.selected{opacity:1;transform:translateY(-8px);border-color:var(--spectral);
+  box-shadow:0 0 12px var(--spectral-glow)}
+.card .spectral-badge{position:absolute;top:-6px;right:-6px;background:var(--spectral-dim);color:#fff;
+  font-size:.5rem;padding:1px 4px;border-radius:8px;font-family:'Cinzel',serif}
+.card .corruption-badge{position:absolute;top:-6px;left:-6px;background:var(--corrupt);color:#fff;
+  font-size:.5rem;padding:1px 4px;border-radius:8px;font-family:'Cinzel',serif}
+.card.ghost-card{border-color:var(--spectral)!important;box-shadow:0 0 10px var(--spectral-glow)}
+.card.ghost-card .card-bg{background:linear-gradient(160deg,#0a2020,#0a3030)!important}
+
+/* Corruption glow */
+.card.corrupt-1{filter:drop-shadow(0 0 3px rgba(255,68,68,.2))}
+.card.corrupt-2{filter:drop-shadow(0 0 5px rgba(255,68,68,.3))}
+.card.corrupt-3{filter:drop-shadow(0 0 8px rgba(255,68,68,.4))}
+.card.corrupt-4{filter:drop-shadow(0 0 12px rgba(255,68,68,.5))}
+.card.corrupt-5{filter:drop-shadow(0 0 16px rgba(255,68,68,.7));animation:eldritch 1s infinite alternate}
+@keyframes eldritch{0%{filter:drop-shadow(0 0 16px rgba(255,68,68,.7)) hue-rotate(0deg)}
+  100%{filter:drop-shadow(0 0 20px rgba(255,100,68,.8)) hue-rotate(15deg)}}
+
+/* ===== SHOP SCREEN ===== */
+#shop-screen{flex-direction:column;align-items:center;justify-content:center;background:var(--bg)}
+.shop-content{text-align:center}
+.shop-content h2{font-family:'Cinzel',serif;color:var(--gold);margin-bottom:1em}
+.shop-items{display:flex;gap:1em;justify-content:center;flex-wrap:wrap;margin-bottom:1.5em}
+.shop-item{background:var(--bg3);border:1px solid #2a2a3a;border-radius:8px;padding:1em;cursor:pointer;
+  transition:var(--transition);min-width:120px}
+.shop-item:hover{border-color:var(--gold);transform:translateY(-3px)}
+.shop-item .item-name{font-family:'Cinzel',serif;font-size:.85rem;color:var(--text-bright);margin-bottom:.3em}
+.shop-item .item-desc{font-size:.75rem;color:var(--text-dim);margin-bottom:.5em}
+.shop-item .item-cost{color:var(--gold);font-family:'Cinzel',serif;font-size:.8rem}
+
+/* ===== REST SCREEN ===== */
+#rest-screen{flex-direction:column;align-items:center;justify-content:center;background:var(--bg)}
+.rest-content{text-align:center}
+.rest-content h2{font-family:'Cinzel',serif;color:var(--spectral);margin-bottom:1em}
+.rest-options{display:flex;gap:1em;justify-content:center;flex-wrap:wrap}
+.rest-option{background:var(--bg3);border:1px solid #2a2a3a;border-radius:8px;padding:1.2em 1.5em;
+  cursor:pointer;transition:var(--transition);min-width:140px}
+.rest-option:hover{border-color:var(--spectral);transform:translateY(-3px)}
+.rest-option .opt-name{font-family:'Cinzel',serif;font-size:.9rem;color:var(--text-bright);margin-bottom:.3em}
+.rest-option .opt-desc{font-size:.75rem;color:var(--text-dim)}
+
+/* ===== EVENT SCREEN ===== */
+#event-screen{flex-direction:column;align-items:center;justify-content:center;background:var(--bg);padding:2em}
+.event-content{max-width:500px;text-align:center}
+.event-content h2{font-family:'Cinzel',serif;color:var(--accent2);margin-bottom:.8em}
+.event-content .event-text{font-style:italic;color:var(--text);line-height:1.6;margin-bottom:1.5em}
+.event-choices{display:flex;flex-direction:column;gap:.8em}
+.event-choice{background:var(--bg3);border:1px solid #2a2a3a;border-radius:6px;padding:.8em 1.2em;
+  cursor:pointer;transition:var(--transition);text-align:left}
+.event-choice:hover{border-color:var(--accent2);background:var(--bg2)}
+.event-choice .choice-label{font-family:'Cinzel',serif;font-size:.85rem;color:var(--text-bright)}
+.event-choice .choice-effect{font-size:.7rem;color:var(--spectral);margin-top:.2em}
+
+/* ===== REWARD SCREEN ===== */
+#reward-screen{flex-direction:column;align-items:center;justify-content:center;background:var(--bg)}
+.reward-content{text-align:center}
+.reward-content h2{font-family:'Cinzel',serif;color:var(--gold);margin-bottom:.5em}
+.reward-content .reward-sub{color:var(--text-dim);font-style:italic;margin-bottom:1.5em}
+.reward-cards{display:flex;gap:1em;justify-content:center;margin-bottom:1.5em}
+.reward-cards .card{cursor:pointer}
+.reward-cards .card:hover{transform:translateY(-8px);box-shadow:0 0 20px var(--accent-glow)}
+
+/* ===== LOG ===== */
+.combat-log{position:absolute;bottom:0;left:0;width:260px;max-height:150px;overflow-y:auto;
+  background:rgba(10,10,15,.9);border-top:1px solid #2a2a3a;border-right:1px solid #2a2a3a;
+  padding:.5em;font-size:.65rem;color:var(--text-dim);z-index:100}
+.combat-log .log-entry{padding:.15em 0;border-bottom:1px solid #1a1a28}
+.combat-log .log-damage{color:var(--blood-bright)}
+.combat-log .log-heal{color:var(--spectral)}
+.combat-log .log-necro{color:var(--accent2)}
+
+/* ===== GAME OVER ===== */
+#gameover-screen{flex-direction:column;align-items:center;justify-content:center;
+  background:radial-gradient(ellipse at 50% 50%,#1a0a0a,#0a0a0f)}
+#gameover-screen h1{font-family:'Cinzel',serif;font-size:2.5rem;color:var(--blood-bright);margin-bottom:.5em;
+  text-shadow:0 0 30px rgba(200,30,30,.4)}
+#gameover-screen .stats{color:var(--text-dim);margin-bottom:1.5em;font-size:.9rem}
+#gameover-screen button{padding:.7em 2em;font-size:1rem;background:linear-gradient(135deg,var(--accent),#5a2080);
+  color:var(--text-bright);border:1px solid var(--accent2);border-radius:4px}
+
+/* ===== WIN ===== */
+#win-screen{flex-direction:column;align-items:center;justify-content:center;
+  background:radial-gradient(ellipse at 50% 50%,#0a1a30,#0a0a0f)}
+#win-screen h1{font-family:'Cinzel',serif;font-size:2.5rem;color:var(--gold);margin-bottom:.5em;
+  text-shadow:0 0 30px rgba(212,168,55,.4)}
+#win-screen button{padding:.7em 2em;font-size:1rem;background:linear-gradient(135deg,var(--gold-dim),#5a4010);
+  color:var(--text-bright);border:1px solid var(--gold);border-radius:4px;margin-top:1em}
+
+/* ===== ANIMATIONS ===== */
+.card-enter{animation:cardEnter .3s ease-out}
+@keyframes cardEnter{from{opacity:0;transform:translateY(20px) scale(.9)}to{opacity:1;transform:translateY(0) scale(1)}}
+.damage-flash{animation:dmgFlash .3s ease}
+@keyframes dmgFlash{0%,100%{background:transparent}50%{background:rgba(200,30,30,.15)}}
+.heal-flash{animation:healFlash .3s ease}
+@keyframes healFlash{0%,100%{background:transparent}50%{background:rgba(58,223,175,.1)}}
+
+/* Tooltip */
+.tooltip{position:fixed;background:var(--bg2);border:1px solid #3a3a4a;border-radius:6px;padding:.6em .8em;
+  font-size:.7rem;color:var(--text);z-index:1000;max-width:200px;pointer-events:none;
+  box-shadow:0 4px 20px rgba(0,0,0,.5);display:none}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:#2a2a3a;border-radius:2px}
+
+/* Necromancy modal */
+.necro-modal{position:fixed;inset:0;background:rgba(0,0,0,.8);display:none;align-items:center;justify-content:center;z-index:200}
+.necro-modal.active{display:flex}
+.necro-panel{background:var(--bg2);border:2px solid var(--spectral-dim);border-radius:12px;padding:1.5em;
+  max-width:500px;width:90%;max-height:80vh;overflow-y:auto}
+.necro-panel h3{font-family:'Cinzel',serif;color:var(--spectral);margin-bottom:.8em;text-align:center}
+.necro-actions{display:flex;flex-direction:column;gap:.6em}
+.necro-action-btn{background:var(--bg3);border:1px solid #2a2a3a;border-radius:6px;padding:.8em;
+  cursor:pointer;transition:var(--transition);text-align:left}
+.necro-action-btn:hover:not(:disabled){border-color:var(--spectral);background:#1a2a28}
+.necro-action-btn:disabled{opacity:.3;cursor:not-allowed}
+.necro-action-btn .na-name{font-family:'Cinzel',serif;font-size:.85rem;color:var(--spectral)}
+.necro-action-btn .na-desc{font-size:.7rem;color:var(--text-dim);margin-top:.2em}
+.necro-action-btn .na-cost{font-size:.65rem;color:var(--gold);margin-top:.2em}
+</style>
+</head>
+<body>
+
+<!-- TITLE -->
+<div id="title-screen" class="screen active">
+  <h1>POKER NECROMANCY</h1>
+  <div class="subtitle">Dead Cards Fuel Living Hands</div>
+  <button onclick="startRun()">Begin Run</button>
+  <div class="version">POC v0.1 — Proof of Concept</div>
+</div>
+
+<!-- MAP -->
+<div id="map-screen" class="screen">
+  <div class="map-header">
+    <div class="player-info">
+      <div class="stat">♥ <span id="map-hp">70</span>/<span id="map-maxhp">70</span>
+        <div class="hp-bar"><div class="hp-fill" id="map-hp-bar" style="width:100%"></div></div>
+      </div>
+      <div class="stat">💎 <span id="map-shards">0</span> Shards</div>
+      <div class="stat">🦴 <span id="map-bones">0</span> Bones</div>
+      <div class="stat">📇 Deck: <span id="map-decksize">0</span></div>
+    </div>
+    <div style="font-family:Cinzel,serif;font-size:.85rem;color:var(--accent2)">
+      Act <span id="map-act">1</span>
+    </div>
+  </div>
+  <div class="map-body">
+    <div class="map-container" id="map-container"></div>
+  </div>
+</div>
+
+<!-- COMBAT -->
+<div id="combat-screen" class="screen">
+  <div class="combat-top">
+    <div class="enemy-area" id="enemy-area"></div>
+    <div class="player-stats">
+      <div class="stat-box">♥ <span id="combat-hp">70</span>/<span id="combat-maxhp">70</span></div>
+      <div class="stat-box">💎 <span id="combat-shards">0</span></div>
+      <div class="stat-box">🦴 <span id="combat-bones">0</span></div>
+      <div class="stat-box">Plays: <span id="plays-left">3</span></div>
+      <div class="stat-box">Discards: <span id="discards-left">2</span></div>
+    </div>
+  </div>
+  <div class="game-table">
+    <div class="zone graveyard-zone">
+      <div class="zone-label">⚰ Graveyard (<span id="gy-count">0</span>/7)</div>
+      <div class="graveyard-slots" id="graveyard-slots"></div>
+    </div>
+    <div class="zone play-zone">
+      <div class="zone-label">⚔ Played Hand</div>
+      <div class="played-cards" id="played-cards"></div>
+      <div class="hand-result" id="hand-result"></div>
+    </div>
+    <div class="zone hand-zone">
+      <div class="zone-label">🃏 Your Hand (select up to 5)</div>
+      <div class="hand-cards" id="hand-cards"></div>
+    </div>
+    <div class="action-bar" id="action-bar">
+      <button class="primary" id="btn-play" onclick="playHand()" disabled>Play Hand</button>
+      <button id="btn-discard" onclick="discardSelected()" disabled>Discard</button>
+      <button class="necro" id="btn-necro" onclick="openNecromancy()">Necromancy</button>
+      <button class="danger" id="btn-endturn" onclick="endPlayerTurn()">End Turn</button>
+    </div>
+  </div>
+  <div class="combat-log" id="combat-log"></div>
+</div>
+
+<!-- NECROMANCY MODAL -->
+<div class="necro-modal" id="necro-modal">
+  <div class="necro-panel">
+    <h3>⚰ Necromantic Arts</h3>
+    <p style="font-size:.75rem;color:var(--text-dim);text-align:center;margin-bottom:1em">
+      Select a graveyard card first, then choose an action.</p>
+    <div class="necro-actions" id="necro-actions"></div>
+    <div style="text-align:center;margin-top:1em">
+      <button onclick="closeNecromancy()" style="padding:.5em 1.5em;background:var(--bg3);color:var(--text);border:1px solid #2a2a3a;border-radius:4px;font-size:.8rem">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- REWARD -->
+<div id="reward-screen" class="screen">
+  <div class="reward-content">
+    <h2>Victory!</h2>
+    <div class="reward-sub">Choose a card to add to your deck</div>
+    <div class="reward-cards" id="reward-cards"></div>
+    <div style="margin-top:.5em">
+      <span style="color:var(--gold);font-family:Cinzel,serif">+<span id="reward-shards">0</span> Soul Shards</span>
+    </div>
+    <button onclick="skipReward()" style="margin-top:1em;padding:.5em 1.5em;background:var(--bg3);color:var(--text-dim);border:1px solid #2a2a3a;border-radius:4px;font-size:.8rem">Skip</button>
+  </div>
+</div>
+
+<!-- SHOP -->
+<div id="shop-screen" class="screen">
+  <div class="shop-content">
+    <h2>🏪 The Crypt Market</h2>
+    <div style="color:var(--gold);margin-bottom:1em;font-family:Cinzel,serif">💎 <span id="shop-shards">0</span> Soul Shards</div>
+    <div class="shop-items" id="shop-items"></div>
+    <button onclick="leaveShop()" style="padding:.6em 1.5em;background:var(--bg3);color:var(--text);border:1px solid #2a2a3a;border-radius:4px;font-size:.85rem;margin-top:1em">Leave Shop</button>
+  </div>
+</div>
+
+<!-- REST -->
+<div id="rest-screen" class="screen">
+  <div class="rest-content">
+    <h2>🔥 Rest Site</h2>
+    <p style="color:var(--text-dim);font-style:italic;margin-bottom:1.5em">The spectral flames offer respite...</p>
+    <div class="rest-options" id="rest-options"></div>
+  </div>
+</div>
+
+<!-- EVENT -->
+<div id="event-screen" class="screen">
+  <div class="event-content" id="event-content"></div>
+</div>
+
+<!-- GAME OVER -->
+<div id="gameover-screen" class="screen">
+  <h1>DEATH</h1>
+  <div class="stats" id="gameover-stats"></div>
+  <button onclick="location.reload()">Rise Again</button>
+</div>
+
+<!-- WIN -->
+<div id="win-screen" class="screen">
+  <h1>VICTORY</h1>
+  <div class="stats" id="win-stats" style="color:var(--gold)"></div>
+  <button onclick="location.reload()">Play Again</button>
+</div>
+
+<!-- TOOLTIP -->
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+// ===========================
+// POKER NECROMANCY — CORE ENGINE
+// ===========================
+
+const SUITS = ['hearts','diamonds','clubs','spades'];
+const SUIT_ICONS = {hearts:'♥',diamonds:'♦',clubs:'♣',spades:'♠',bones:'💀'};
+const SUIT_NAMES = {hearts:'Hearts',diamonds:'Diamonds',clubs:'Clubs',spades:'Spades',bones:'Bones'};
+const RANK_NAMES = {2:'2',3:'3',4:'4',5:'5',6:'6',7:'7',8:'8',9:'9',10:'10',11:'J',12:'Q',13:'K',14:'A'};
+const HAND_RANKS = [
+  'High Card','Pair','Two Pair','Three of a Kind','Straight','Flush',
+  'Full House','Four of a Kind','Straight Flush','Royal Flush',
+  'Ghost Flush','Necrotic Straight'
+];
+const HAND_BASE_SCORE = [5,10,20,30,30,35,40,60,100,100,120,80];
+const HAND_BASE_MULT = [1,2,2,3,4,4,4,7,8,8,10,6];
+
+let G = {}; // Global game state
+
+// ===== CARD FACTORY =====
+let cardIdCounter = 0;
+function makeCard(rank, suit, rarity='common') {
+  const rarityBonus = {common:0,uncommon:.2,rare:.5,epic:1,legendary:2};
+  const affinityBase = {common:1,uncommon:2,rare:3,epic:5,legendary:8};
+  const baseChips = rank + Math.floor(rank * (rarityBonus[rarity]||0));
+  return {
+    id: ++cardIdCounter,
+    rank, suit, rarity,
+    baseChips,
+    baseMult: 1 + (rarity==='legendary'?.5:rarity==='epic'?.3:rarity==='rare'?.2:rarity==='uncommon'?.1:0),
+    corruption: 0,
+    spectralPower: 0,
+    necroAffinity: affinityBase[rarity]||1,
+    isGhost: false,
+    decay: 0,
+    turnsInGraveyard: 0
+  };
+}
+
+function makeGhostCard(c1, c2) {
+  return {
+    id: ++cardIdCounter,
+    rank: Math.max(c1.rank, c2.rank) + 1,
+    suit: 'bones',
+    rarity: 'ghost',
+    baseChips: c1.baseChips + c2.baseChips,
+    baseMult: c1.baseMult + c2.baseMult,
+    corruption: 0,
+    spectralPower: 0,
+    necroAffinity: 10,
+    isGhost: true,
+    decay: 0,
+    turnsInGraveyard: 0
+  };
+}
+
+function cardDisplay(c) {
+  return `${RANK_NAMES[c.rank]||c.rank}${SUIT_ICONS[c.suit]}`;
+}
+
+function generateStartingDeck() {
+  const deck = [];
+  for (const suit of SUITS) {
+    for (let rank = 2; rank <= 14; rank++) {
+      deck.push(makeCard(rank, suit, 'common'));
+    }
+  }
+  return shuffle(deck);
+}
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// ===== POKER HAND EVALUATOR =====
+function evaluateHand(cards) {
+  if (cards.length === 0) return { handIndex: 0, handName: 'Nothing', score: 0, mult: 0 };
+  if (cards.length === 1) {
+    const chips = getCardChips(cards[0]);
+    return { handIndex: 0, handName: 'High Card', score: 5 + chips, mult: 1 };
+  }
+
+  const sorted = [...cards].sort((a, b) => a.rank - b.rank);
+  const ranks = sorted.map(c => c.rank);
+  const suits = sorted.map(c => c.suit);
+
+  const hasBones = suits.some(s => s === 'bones');
+  const isFlush = suits.every(s => s === suits[0]);
+  const allBones = suits.every(s => s === 'bones');
+
+  // Check for Ghost Flush (all bones suit)
+  if (allBones && cards.length >= 5) {
+    return scoreHand(10, cards); // Ghost Flush
+  }
+
+  // Rank counts
+  const rankCounts = {};
+  ranks.forEach(r => rankCounts[r] = (rankCounts[r] || 0) + 1);
+  const counts = Object.values(rankCounts).sort((a, b) => b - a);
+
+  // Straight check
+  let isStraight = false;
+  if (cards.length >= 5) {
+    const uniqueRanks = [...new Set(ranks)].sort((a, b) => a - b);
+    if (uniqueRanks.length >= 5) {
+      // Check consecutive
+      for (let i = 0; i <= uniqueRanks.length - 5; i++) {
+        if (uniqueRanks[i + 4] - uniqueRanks[i] === 4) isStraight = true;
+      }
+      // Ace-low straight
+      if (uniqueRanks.includes(14) && uniqueRanks.includes(2) && uniqueRanks.includes(3) && uniqueRanks.includes(4) && uniqueRanks.includes(5)) {
+        isStraight = true;
+      }
+    }
+  }
+
+  // Necrotic Straight (straight with at least one bones card)
+  if (isStraight && hasBones && cards.length >= 5) {
+    return scoreHand(11, cards);
+  }
+
+  // Royal Flush
+  if (isFlush && isStraight && ranks.includes(14) && ranks.includes(13) && cards.length >= 5) {
+    return scoreHand(9, cards);
+  }
+  // Straight Flush
+  if (isFlush && isStraight && cards.length >= 5) return scoreHand(8, cards);
+  // Four of a Kind
+  if (counts[0] >= 4) return scoreHand(7, cards);
+  // Full House
+  if (counts[0] >= 3 && counts[1] >= 2) return scoreHand(6, cards);
+  // Flush
+  if (isFlush && cards.length >= 5) return scoreHand(5, cards);
+  // Straight
+  if (isStraight && cards.length >= 5) return scoreHand(4, cards);
+  // Three of a Kind
+  if (counts[0] >= 3) return scoreHand(3, cards);
+  // Two Pair
+  if (counts[0] >= 2 && counts[1] >= 2) return scoreHand(2, cards);
+  // Pair
+  if (counts[0] >= 2) return scoreHand(1, cards);
+  // High Card
+  return scoreHand(0, cards);
+}
+
+function getCardChips(card) {
+  let chips = card.baseChips;
+  // Corruption bonuses
+  if (card.corruption >= 2) chips *= 1.3;
+  if (card.corruption >= 3) chips *= 1.3;
+  if (card.corruption >= 4) chips *= 1.3;
+  if (card.corruption >= 5) chips *= 1.5;
+  // Spectral bonus
+  chips += card.spectralPower * 2;
+  // Decay penalty
+  chips = Math.max(1, Math.floor(chips * (1 - card.decay * 0.15)));
+  return Math.floor(chips);
+}
+
+function getCardMult(card) {
+  let mult = card.baseMult;
+  if (card.isGhost) mult *= 1.5;
+  return mult;
+}
+
+function scoreHand(handIndex, cards) {
+  const baseScore = HAND_BASE_SCORE[handIndex];
+  const baseMult = HAND_BASE_MULT[handIndex];
+  let totalChips = baseScore;
+  let totalMult = baseMult;
+  cards.forEach(c => {
+    totalChips += getCardChips(c);
+    totalMult += getCardMult(c) - 1;
+  });
+  return {
+    handIndex,
+    handName: HAND_RANKS[handIndex],
+    score: Math.floor(totalChips * totalMult),
+    chips: totalChips,
+    mult: totalMult
+  };
+}
+
+// ===== ENEMY GENERATION =====
+const ENEMY_NAMES_1 = ['Hollow','Wretched','Pale','Grim','Fading','Lost'];
+const ENEMY_NAMES_2 = ['Shade','Wraith','Specter','Revenant','Phantom','Ghoul'];
+
+function makeEnemy(act, isElite, isBoss) {
+  const baseHP = act * 30 + (isElite ? 40 : 0) + (isBoss ? 80 : 0) + Math.floor(Math.random() * 20);
+  const baseDmg = act * 3 + (isElite ? 5 : 0) + (isBoss ? 8 : 0) + Math.floor(Math.random() * 5) + 3;
+  const name = isBoss
+    ? ['The Bone King','The Lich Queen','Dread Necromancer'][act - 1] || 'The Undying'
+    : `${ENEMY_NAMES_1[Math.floor(Math.random()*6)]} ${ENEMY_NAMES_2[Math.floor(Math.random()*6)]}`;
+  return {
+    name, hp: baseHP, maxHp: baseHP, damage: baseDmg,
+    intent: 'attack', isElite, isBoss,
+    shield: 0
+  };
+}
+
+function getEnemyIntent(enemy) {
+  const r = Math.random();
+  if (r < 0.6) { enemy.intent = 'attack'; }
+  else if (r < 0.8) { enemy.intent = 'shield'; }
+  else { enemy.intent = 'power'; }
+}
+
+function getIntentText(enemy) {
+  if (enemy.intent === 'attack') return `⚔ Attack for ${enemy.damage}`;
+  if (enemy.intent === 'shield') return `🛡 Gain ${Math.floor(enemy.damage * 0.6)} Shield`;
+  return `⬆ Power Up (+2 dmg)`;
+}
+
+// ===== MAP GENERATION =====
+function generateMap(act) {
+  const rows = 8 + act * 2;
+  const map = [];
+  const nodeTypes = ['combat','combat','combat','elite','shop','rest','event','combat','combat','combat'];
+  for (let r = 0; r < rows; r++) {
+    const nodesInRow = r === 0 ? 1 : r === rows - 1 ? 1 : Math.floor(Math.random() * 2) + 2;
+    const row = [];
+    for (let n = 0; n < nodesInRow; n++) {
+      let type;
+      if (r === 0) type = 'start';
+      else if (r === rows - 1) type = 'boss';
+      else if (r === 1) type = 'combat';
+      else type = nodeTypes[Math.floor(Math.random() * nodeTypes.length)];
+      // Force at least one elite per act
+      if (r === Math.floor(rows * 0.6) && n === 0) type = 'elite';
+      row.push({ type, completed: false, row: r, col: n });
+    }
+    map.push(row);
+  }
+  return map;
+}
+
+const NODE_ICONS = {
+  start: '🏠', combat: '⚔', elite: '💀', boss: '👑',
+  shop: '🏪', rest: '🔥', event: '❓'
+};
+
+// ===== INITIALIZATION =====
+function startRun() {
+  cardIdCounter = 0;
+  G = {
+    hp: 70, maxHp: 70,
+    soulShards: 0, boneTokens: 0,
+    deck: generateStartingDeck(),
+    graveyard: [],
+    exile: [],
+    relics: [],
+    act: 1,
+    currentRow: -1,
+    map: generateMap(1),
+    encountersWon: 0,
+    totalDamageDealt: 0,
+    // Combat state
+    drawPile: [], discardPile: [], hand: [], playedCards: [],
+    enemies: [],
+    playsLeft: 0, discardsLeft: 0,
+    selectedHand: [], selectedGraveyard: [],
+    inCombat: false
+  };
+  // Auto-advance past start node
+  G.map[0][0].completed = true;
+  G.currentRow = 0;
+  showScreen('map-screen');
+  renderMap();
+  updateMapStats();
+}
+
+// ===== SCREEN MANAGEMENT =====
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// ===== MAP RENDERING =====
+function renderMap() {
+  const container = document.getElementById('map-container');
+  container.innerHTML = '';
+  const map = G.map;
+  for (let r = map.length - 1; r >= 0; r--) {
+    const rowDiv = document.createElement('div');
+    rowDiv.className = 'map-row';
+    for (let n = 0; n < map[r].length; n++) {
+      const node = map[r][n];
+      const el = document.createElement('div');
+      el.className = 'map-node';
+      if (node.completed) el.classList.add('completed');
+      if (node.type === 'boss') el.classList.add('boss');
+      if (r === G.currentRow) el.classList.add('current');
+      if (r === G.currentRow + 1 && !node.completed) {
+        el.classList.add('available');
+        el.onclick = () => visitNode(r, n);
+      }
+      el.innerHTML = NODE_ICONS[node.type] || '?';
+      const label = document.createElement('div');
+      label.className = 'node-label';
+      label.textContent = node.type.charAt(0).toUpperCase() + node.type.slice(1);
+      el.appendChild(label);
+      rowDiv.appendChild(el);
+    }
+    container.appendChild(rowDiv);
+  }
+}
+
+function updateMapStats() {
+  document.getElementById('map-hp').textContent = G.hp;
+  document.getElementById('map-maxhp').textContent = G.maxHp;
+  document.getElementById('map-hp-bar').style.width = `${(G.hp / G.maxHp) * 100}%`;
+  document.getElementById('map-shards').textContent = G.soulShards;
+  document.getElementById('map-bones').textContent = G.boneTokens;
+  document.getElementById('map-decksize').textContent = G.deck.length;
+  document.getElementById('map-act').textContent = G.act;
+}
+
+function visitNode(row, col) {
+  G.currentRow = row;
+  const node = G.map[row][col];
+  node.completed = true;
+
+  switch (node.type) {
+    case 'start': G.currentRow = row; renderMap(); break;
+    case 'combat': startCombat(false, false); break;
+    case 'elite': startCombat(true, false); break;
+    case 'boss': startCombat(false, true); break;
+    case 'shop': openShop(); break;
+    case 'rest': openRest(); break;
+    case 'event': openEvent(); break;
+    default: startCombat(false, false);
+  }
+}
+
+// ===== COMBAT =====
+function startCombat(isElite, isBoss) {
+  G.drawPile = shuffle([...G.deck]);
+  G.discardPile = [];
+  G.hand = [];
+  G.playedCards = [];
+  G.graveyard = G.graveyard.slice(0, 7); // Carry over graveyard
+  G.selectedHand = [];
+  G.selectedGraveyard = [];
+  G.playsLeft = 3;
+  G.discardsLeft = 2;
+  G.inCombat = true;
+
+  // Generate enemies
+  const enemyCount = isBoss ? 1 : isElite ? Math.floor(Math.random() * 2) + 1 : 1;
+  G.enemies = [];
+  for (let i = 0; i < enemyCount; i++) {
+    const e = makeEnemy(G.act, isElite, isBoss);
+    getEnemyIntent(e);
+    G.enemies.push(e);
+  }
+
+  showScreen('combat-screen');
+  clearLog();
+  logMsg(`Combat begins! ${G.enemies.map(e => e.name).join(', ')} appear${isBoss ? '!' : '.'}`);
+  drawCards(8);
+  renderCombat();
+}
+
+function drawCards(n) {
+  for (let i = 0; i < n; i++) {
+    if (G.drawPile.length === 0) {
+      if (G.discardPile.length === 0) break;
+      G.drawPile = shuffle([...G.discardPile]);
+      G.discardPile = [];
+      logMsg('Deck reshuffled from discard pile.');
+    }
+    const card = G.drawPile.pop();
+    G.hand.push(card);
+  }
+}
+
+function renderCombat() {
+  // Enemies
+  const enemyArea = document.getElementById('enemy-area');
+  enemyArea.innerHTML = '';
+  G.enemies.forEach(e => {
+    const div = document.createElement('div');
+    div.className = 'enemy-card';
+    div.innerHTML = `
+      <div class="enemy-name">${e.name}${e.isElite ? ' ⭐' : ''}${e.isBoss ? ' 👑' : ''}</div>
+      <div style="font-size:.8rem">HP: ${e.hp}/${e.maxHp}${e.shield > 0 ? ` 🛡${e.shield}` : ''}</div>
+      <div class="enemy-hp-bar"><div class="enemy-hp-fill" style="width:${(e.hp/e.maxHp)*100}%"></div></div>
+      <div class="enemy-intent">${getIntentText(e)}</div>
+    `;
+    enemyArea.appendChild(div);
+  });
+
+  // Player stats
+  document.getElementById('combat-hp').textContent = G.hp;
+  document.getElementById('combat-maxhp').textContent = G.maxHp;
+  document.getElementById('combat-shards').textContent = G.soulShards;
+  document.getElementById('combat-bones').textContent = G.boneTokens;
+  document.getElementById('plays-left').textContent = G.playsLeft;
+  document.getElementById('discards-left').textContent = G.discardsLeft;
+
+  // Hand
+  const handDiv = document.getElementById('hand-cards');
+  handDiv.innerHTML = '';
+  G.hand.forEach(c => {
+    const el = createCardElement(c, false);
+    if (G.selectedHand.includes(c.id)) el.classList.add('selected');
+    el.onclick = () => toggleHandSelect(c.id);
+    handDiv.appendChild(el);
+  });
+
+  // Played cards
+  const playDiv = document.getElementById('played-cards');
+  playDiv.innerHTML = '';
+  G.playedCards.forEach(c => {
+    playDiv.appendChild(createCardElement(c, false));
+  });
+
+  // Graveyard
+  renderGraveyard();
+
+  // Buttons
+  const selCount = G.selectedHand.length;
+  document.getElementById('btn-play').disabled = selCount === 0 || selCount > 5 || G.playsLeft <= 0;
+  document.getElementById('btn-discard').disabled = selCount === 0 || G.discardsLeft <= 0;
+  document.getElementById('btn-necro').disabled = G.graveyard.length === 0;
+
+  // Hand result preview
+  if (selCount > 0) {
+    const selCards = G.hand.filter(c => G.selectedHand.includes(c.id));
+    const eval_ = evaluateHand(selCards);
+    document.getElementById('hand-result').textContent = `${eval_.handName} — ${eval_.chips} × ${eval_.mult.toFixed(1)} = ${eval_.score}`;
+  } else {
+    document.getElementById('hand-result').textContent = '';
+  }
+}
+
+function renderGraveyard() {
+  const gyDiv = document.getElementById('graveyard-slots');
+  gyDiv.innerHTML = '';
+  document.getElementById('gy-count').textContent = G.graveyard.length;
+  for (let i = 0; i < 7; i++) {
+    if (i < G.graveyard.length) {
+      const c = G.graveyard[i];
+      const el = createCardElement(c, true);
+      if (G.selectedGraveyard.includes(c.id)) el.classList.add('selected');
+      el.onclick = () => toggleGraveyardSelect(c.id);
+      gyDiv.appendChild(el);
+    } else {
+      const slot = document.createElement('div');
+      slot.className = 'graveyard-slot';
+      slot.textContent = '∅';
+      gyDiv.appendChild(slot);
+    }
+  }
+}
+
+function createCardElement(card, isGraveyard) {
+  const el = document.createElement('div');
+  el.className = `card ${card.suit}`;
+  if (isGraveyard) el.classList.add('graveyard-card');
+  if (card.isGhost) el.classList.add('ghost-card');
+  if (card.corruption > 0) el.classList.add(`corrupt-${Math.min(card.corruption, 5)}`);
+  el.classList.add('card-enter');
+
+  const rankText = card.isGhost ? `G${card.rank}` : (RANK_NAMES[card.rank] || card.rank);
+  const chips = getCardChips(card);
+  el.innerHTML = `
+    <div class="card-bg"></div>
+    <div class="rank">${rankText}</div>
+    <div class="suit-icon">${SUIT_ICONS[card.suit]}</div>
+    <div class="card-power">${chips}ch</div>
+    ${card.spectralPower > 0 ? `<div class="spectral-badge">+${card.spectralPower}</div>` : ''}
+    ${card.corruption > 0 ? `<div class="corruption-badge">C${card.corruption}</div>` : ''}
+  `;
+  return el;
+}
+
+function toggleHandSelect(id) {
+  const idx = G.selectedHand.indexOf(id);
+  if (idx >= 0) G.selectedHand.splice(idx, 1);
+  else if (G.selectedHand.length < 5) G.selectedHand.push(id);
+  renderCombat();
+}
+
+function toggleGraveyardSelect(id) {
+  const idx = G.selectedGraveyard.indexOf(id);
+  if (idx >= 0) G.selectedGraveyard.splice(idx, 1);
+  else G.selectedGraveyard.push(id);
+  renderCombat();
+}
+
+// ===== PLAY HAND =====
+function playHand() {
+  if (G.selectedHand.length === 0 || G.playsLeft <= 0) return;
+  G.playsLeft--;
+
+  const playedCards = G.hand.filter(c => G.selectedHand.includes(c.id));
+  G.hand = G.hand.filter(c => !G.selectedHand.includes(c.id));
+  G.playedCards = playedCards;
+
+  const result = evaluateHand(playedCards);
+  logMsg(`Played ${result.handName}: ${result.chips} × ${result.mult.toFixed(1)} = ${result.score} damage`);
+
+  // Corruption side effects
+  playedCards.forEach(c => {
+    if (c.corruption >= 1 && Math.random() < 0.1 * c.corruption) {
+      const selfDmg = c.corruption;
+      G.hp = Math.max(0, G.hp - selfDmg);
+      logMsg(`${cardDisplay(c)} corruption deals ${selfDmg} self-damage!`, 'log-damage');
+    }
+    if (c.corruption >= 3 && G.hand.length > 0 && Math.random() < 0.3) {
+      const discarded = G.hand.splice(Math.floor(Math.random() * G.hand.length), 1)[0];
+      sendToGraveyard(discarded);
+      logMsg(`${cardDisplay(c)} corruption discards ${cardDisplay(discarded)}!`, 'log-necro');
+    }
+  });
+
+  // Deal damage to enemies
+  let dmg = result.score;
+  G.totalDamageDealt += dmg;
+  for (const enemy of G.enemies) {
+    if (enemy.hp <= 0) continue;
+    let actualDmg = dmg;
+    if (enemy.shield > 0) {
+      const blocked = Math.min(enemy.shield, actualDmg);
+      enemy.shield -= blocked;
+      actualDmg -= blocked;
+      if (blocked > 0) logMsg(`${enemy.name}'s shield absorbs ${blocked} damage.`);
+    }
+    enemy.hp = Math.max(0, enemy.hp - actualDmg);
+    logMsg(`${enemy.name} takes ${actualDmg} damage! (${enemy.hp}/${enemy.maxHp} HP)`, 'log-damage');
+    break; // Damage first living enemy
+  }
+
+  // Move played cards to graveyard
+  playedCards.forEach(c => sendToGraveyard(c));
+  G.playedCards = [];
+  G.selectedHand = [];
+
+  // Check enemy death
+  G.enemies = G.enemies.filter(e => {
+    if (e.hp <= 0) {
+      logMsg(`${e.name} is destroyed!`, 'log-damage');
+      G.soulShards += (e.isBoss ? 15 : e.isElite ? 8 : 4);
+      if (e.isBoss) G.boneTokens++;
+      return false;
+    }
+    return true;
+  });
+
+  document.getElementById('hand-result').textContent = `${result.handName} — ${result.score} damage!`;
+
+  if (G.enemies.length === 0) {
+    setTimeout(() => combatVictory(), 600);
+  } else {
+    renderCombat();
+    if (G.hp <= 0) { setTimeout(() => gameOver(), 500); }
+  }
+}
+
+function sendToGraveyard(card) {
+  card.turnsInGraveyard = 0;
+  if (G.graveyard.length >= 7) {
+    const exiled = G.graveyard.shift();
+    G.exile.push(exiled);
+    logMsg(`${cardDisplay(exiled)} exiled from graveyard (overflow).`, 'log-necro');
+  }
+  G.graveyard.push(card);
+}
+
+function discardSelected() {
+  if (G.selectedHand.length === 0 || G.discardsLeft <= 0) return;
+  G.discardsLeft--;
+  const discarded = G.hand.filter(c => G.selectedHand.includes(c.id));
+  G.hand = G.hand.filter(c => !G.selectedHand.includes(c.id));
+  discarded.forEach(c => {
+    sendToGraveyard(c);
+    logMsg(`Discarded ${cardDisplay(c)} to graveyard.`);
+  });
+  G.selectedHand = [];
+  // Draw replacement cards
+  drawCards(discarded.length);
+  renderCombat();
+}
+
+// ===== END TURN =====
+function endPlayerTurn() {
+  // Enemy actions
+  G.enemies.forEach(enemy => {
+    if (enemy.hp <= 0) return;
+    if (enemy.intent === 'attack') {
+      const dmg = enemy.damage;
+      G.hp = Math.max(0, G.hp - dmg);
+      logMsg(`${enemy.name} attacks for ${dmg}! (You: ${G.hp}/${G.maxHp})`, 'log-damage');
+      document.getElementById('combat-screen').classList.add('damage-flash');
+      setTimeout(() => document.getElementById('combat-screen').classList.remove('damage-flash'), 300);
+    } else if (enemy.intent === 'shield') {
+      enemy.shield += Math.floor(enemy.damage * 0.6);
+      logMsg(`${enemy.name} gains ${Math.floor(enemy.damage * 0.6)} shield.`);
+    } else {
+      enemy.damage += 2;
+      logMsg(`${enemy.name} powers up! (+2 damage)`);
+    }
+    getEnemyIntent(enemy);
+  });
+
+  if (G.hp <= 0) { setTimeout(() => gameOver(), 500); return; }
+
+  // Graveyard spectral accumulation
+  G.graveyard.forEach(c => {
+    c.turnsInGraveyard++;
+    c.spectralPower += c.necroAffinity;
+  });
+
+  // Decay tick for reanimated cards
+  G.hand.forEach(c => {
+    if (c.decay > 0) {
+      c.decay += 0.05;
+      if (c.decay >= 1) {
+        logMsg(`${cardDisplay(c)} decayed completely and is exiled!`, 'log-necro');
+        G.exile.push(c);
+        G.hand = G.hand.filter(h => h.id !== c.id);
+      }
+    }
+  });
+
+  // Reset turn
+  G.playsLeft = 3;
+  G.discardsLeft = 2;
+  G.selectedHand = [];
+  G.selectedGraveyard = [];
+  G.playedCards = [];
+
+  // Discard remaining hand and draw new
+  G.hand.forEach(c => G.discardPile.push(c));
+  G.hand = [];
+  drawCards(8);
+
+  document.getElementById('hand-result').textContent = '';
+  renderCombat();
+}
+
+// ===== NECROMANCY =====
+function openNecromancy() {
+  document.getElementById('necro-modal').classList.add('active');
+  renderNecroActions();
+}
+
+function closeNecromancy() {
+  document.getElementById('necro-modal').classList.remove('active');
+  G.selectedGraveyard = [];
+  renderCombat();
+}
+
+function renderNecroActions() {
+  const div = document.getElementById('necro-actions');
+  const selGY = G.graveyard.filter(c => G.selectedGraveyard.includes(c.id));
+  const hasGYSel = selGY.length > 0;
+  const hasHandSel = G.selectedHand.length > 0;
+
+  div.innerHTML = `
+    <div style="margin-bottom:.5em;font-size:.7rem;color:var(--text-dim)">
+      Graveyard selected: ${selGY.map(c => cardDisplay(c)).join(', ') || 'None'}<br>
+      Hand selected: ${G.hand.filter(c => G.selectedHand.includes(c.id)).map(c => cardDisplay(c)).join(', ') || 'None'}
+    </div>
+
+    <button class="necro-action-btn" onclick="doReanimate()" ${!hasGYSel || selGY.length !== 1 || G.soulShards < (selGY[0]?.rank || 99) ? 'disabled' : ''}>
+      <div class="na-name">🦴 Reanimate</div>
+      <div class="na-desc">Return 1 graveyard card to hand with spectral bonus. Gains Decay.</div>
+      <div class="na-cost">Cost: ${selGY[0]?.rank || '?'} Soul Shards (card rank)</div>
+    </button>
+
+    <button class="necro-action-btn" onclick="doFuse()" ${selGY.length < 2 || G.soulShards < 2 ? 'disabled' : ''}>
+      <div class="na-name">👻 Fuse</div>
+      <div class="na-desc">Combine 2 graveyard cards into a Ghost Card with merged stats.</div>
+      <div class="na-cost">Cost: Both cards + 2 Soul Shards</div>
+    </button>
+
+    <button class="necro-action-btn" onclick="doCorrupt()" ${!hasGYSel || selGY.length !== 1 || !hasHandSel ? 'disabled' : ''}>
+      <div class="na-name">🩸 Corrupt</div>
+      <div class="na-desc">Add graveyard card's power to a hand card. +1 Corruption.</div>
+      <div class="na-cost">Cost: Graveyard card destroyed</div>
+    </button>
+
+    <button class="necro-action-btn" onclick="doDevour()" ${!hasGYSel ? 'disabled' : ''}>
+      <div class="na-name">💀 Devour</div>
+      <div class="na-desc">Destroy graveyard card(s) for Soul Shards and HP.</div>
+      <div class="na-cost">Gain: ~${selGY.reduce((s,c) => s + Math.ceil(c.rank/3) + Math.floor(c.spectralPower/2), 0)} Shards, ~${selGY.length * 2} HP</div>
+    </button>
+
+    <button class="necro-action-btn" onclick="doResurrect()" ${!hasGYSel || selGY.length !== 1 || G.soulShards < 5 || G.boneTokens < 1 ? 'disabled' : ''}>
+      <div class="na-name">✨ Resurrect</div>
+      <div class="na-desc">Full restoration to hand at half power. Rare ability.</div>
+      <div class="na-cost">Cost: 5 Soul Shards + 1 Bone Token</div>
+    </button>
+  `;
+}
+
+function doReanimate() {
+  const sel = G.graveyard.filter(c => G.selectedGraveyard.includes(c.id));
+  if (sel.length !== 1) return;
+  const card = sel[0];
+  if (G.soulShards < card.rank) return;
+  G.soulShards -= card.rank;
+  G.graveyard = G.graveyard.filter(c => c.id !== card.id);
+  card.decay = 0.15; // Starts decaying
+  G.hand.push(card);
+  logMsg(`Reanimated ${cardDisplay(card)} (+${card.spectralPower} spectral power, gains Decay)`, 'log-necro');
+  G.selectedGraveyard = [];
+  closeNecromancy();
+  renderCombat();
+}
+
+function doFuse() {
+  const sel = G.graveyard.filter(c => G.selectedGraveyard.includes(c.id));
+  if (sel.length < 2 || G.soulShards < 2) return;
+  const c1 = sel[0], c2 = sel[1];
+  G.soulShards -= 2;
+  G.graveyard = G.graveyard.filter(c => c.id !== c1.id && c.id !== c2.id);
+  const ghost = makeGhostCard(c1, c2);
+  G.hand.push(ghost);
+  G.deck.push(ghost); // Permanent addition to deck
+  logMsg(`Fused ${cardDisplay(c1)} + ${cardDisplay(c2)} → Ghost Card ${cardDisplay(ghost)}!`, 'log-necro');
+  G.selectedGraveyard = [];
+  closeNecromancy();
+  renderCombat();
+}
+
+function doCorrupt() {
+  const gySel = G.graveyard.filter(c => G.selectedGraveyard.includes(c.id));
+  const handSel = G.hand.filter(c => G.selectedHand.includes(c.id));
+  if (gySel.length !== 1 || handSel.length === 0) return;
+  const source = gySel[0];
+  const target = handSel[0];
+  G.graveyard = G.graveyard.filter(c => c.id !== source.id);
+  G.exile.push(source);
+  target.baseChips += Math.floor(source.baseChips * 0.5);
+  target.corruption = Math.min(5, target.corruption + 1);
+  logMsg(`Corrupted ${cardDisplay(target)} with ${cardDisplay(source)}'s power. +${Math.floor(source.baseChips*0.5)} chips, Corruption ${target.corruption}`, 'log-necro');
+  G.selectedGraveyard = [];
+  G.selectedHand = [];
+  closeNecromancy();
+  renderCombat();
+}
+
+function doDevour() {
+  const sel = G.graveyard.filter(c => G.selectedGraveyard.includes(c.id));
+  if (sel.length === 0) return;
+  let totalShards = 0, totalHP = 0;
+  sel.forEach(c => {
+    const shards = Math.ceil(c.rank / 3) + Math.floor(c.spectralPower / 2);
+    totalShards += shards;
+    totalHP += 2;
+    G.graveyard = G.graveyard.filter(gc => gc.id !== c.id);
+    G.exile.push(c);
+  });
+  G.soulShards += totalShards;
+  G.hp = Math.min(G.maxHp, G.hp + totalHP);
+  logMsg(`Devoured ${sel.length} card(s): +${totalShards} Shards, +${totalHP} HP`, 'log-necro');
+  G.selectedGraveyard = [];
+  closeNecromancy();
+  renderCombat();
+}
+
+function doResurrect() {
+  const sel = G.graveyard.filter(c => G.selectedGraveyard.includes(c.id));
+  if (sel.length !== 1 || G.soulShards < 5 || G.boneTokens < 1) return;
+  const card = sel[0];
+  G.soulShards -= 5;
+  G.boneTokens -= 1;
+  G.graveyard = G.graveyard.filter(c => c.id !== card.id);
+  card.baseChips = Math.floor(card.baseChips * 0.5);
+  card.spectralPower = 0;
+  card.decay = 0;
+  card.corruption = 0;
+  G.hand.push(card);
+  logMsg(`Resurrected ${cardDisplay(card)} at half power!`, 'log-necro');
+  G.selectedGraveyard = [];
+  closeNecromancy();
+  renderCombat();
+}
+
+// ===== COMBAT VICTORY =====
+function combatVictory() {
+  G.inCombat = false;
+  G.encountersWon++;
+  // Clean up combat state - deck persists as-is
+  G.hand = [];
+  G.discardPile = [];
+  G.drawPile = [];
+  G.playedCards = [];
+  G.selectedHand = [];
+  G.selectedGraveyard = [];
+
+  // Generate reward cards
+  showScreen('reward-screen');
+  const shardReward = Math.floor(Math.random() * 5) + 3;
+  G.soulShards += shardReward;
+  document.getElementById('reward-shards').textContent = shardReward;
+
+  const rewardDiv = document.getElementById('reward-cards');
+  rewardDiv.innerHTML = '';
+  const rewards = [];
+  for (let i = 0; i < 3; i++) {
+    const rarity = Math.random() < 0.03 ? 'legendary' : Math.random() < 0.08 ? 'epic' : Math.random() < 0.15 ? 'rare' : Math.random() < 0.28 ? 'uncommon' : 'common';
+    const rank = Math.floor(Math.random() * 13) + 2;
+    const suit = Math.random() < 0.1 ? 'bones' : SUITS[Math.floor(Math.random() * 4)];
+    const card = makeCard(rank, suit, rarity);
+    rewards.push(card);
+    const el = createCardElement(card, false);
+    el.onclick = () => addRewardCard(card);
+    const label = document.createElement('div');
+    label.style.cssText = 'font-size:.6rem;text-align:center;margin-top:.3em;color:var(--text-dim)';
+    label.textContent = rarity;
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = 'display:flex;flex-direction:column;align-items:center';
+    wrapper.appendChild(el);
+    wrapper.appendChild(label);
+    rewardDiv.appendChild(wrapper);
+  }
+}
+
+function addRewardCard(card) {
+  G.deck.push(card);
+  logMsg(`Added ${cardDisplay(card)} (${card.rarity}) to deck.`);
+  returnToMap();
+}
+
+function skipReward() {
+  returnToMap();
+}
+
+function returnToMap() {
+  // Check if boss was defeated — advance act
+  const lastRow = G.map[G.map.length - 1];
+  if (lastRow.some(n => n.completed && n.type === 'boss')) {
+    if (G.act >= 3) {
+      showScreen('win-screen');
+      document.getElementById('win-stats').textContent =
+        `Encounters won: ${G.encountersWon} | Damage dealt: ${G.totalDamageDealt} | Deck size: ${G.deck.length}`;
+      return;
+    }
+    G.act++;
+    G.currentRow = -1;
+    G.map = generateMap(G.act);
+    logMsg(`Entering Act ${G.act}...`);
+  }
+  showScreen('map-screen');
+  renderMap();
+  updateMapStats();
+}
+
+// ===== SHOP =====
+function openShop() {
+  showScreen('shop-screen');
+  document.getElementById('shop-shards').textContent = G.soulShards;
+  const items = document.getElementById('shop-items');
+  items.innerHTML = '';
+
+  const shopStock = [
+    { name: 'Remove Card', desc: 'Remove a random common card from deck', cost: 5, action: () => {
+      const commons = G.deck.filter(c => c.rarity === 'common');
+      if (commons.length) { const c = commons[Math.floor(Math.random()*commons.length)]; G.deck = G.deck.filter(d => d.id !== c.id); logMsg(`Removed ${cardDisplay(c)} from deck.`); }
+    }},
+    { name: 'Heal 15 HP', desc: 'Restore 15 hit points', cost: 4, action: () => { G.hp = Math.min(G.maxHp, G.hp + 15); }},
+    { name: 'Rare Card', desc: 'Add a random rare card', cost: 8, action: () => {
+      const c = makeCard(Math.floor(Math.random()*13)+2, SUITS[Math.floor(Math.random()*4)], 'rare'); G.deck.push(c); logMsg(`Bought ${cardDisplay(c)} (rare).`);
+    }},
+    { name: 'Bone Token', desc: 'Gain 1 Bone Token for Resurrect', cost: 10, action: () => { G.boneTokens++; }},
+    { name: 'Max HP +5', desc: 'Permanently increase max HP', cost: 6, action: () => { G.maxHp += 5; G.hp += 5; }},
+  ];
+
+  shopStock.forEach(item => {
+    const el = document.createElement('div');
+    el.className = 'shop-item';
+    el.innerHTML = `<div class="item-name">${item.name}</div><div class="item-desc">${item.desc}</div><div class="item-cost">💎 ${item.cost}</div>`;
+    el.onclick = () => {
+      if (G.soulShards >= item.cost) {
+        G.soulShards -= item.cost;
+        item.action();
+        document.getElementById('shop-shards').textContent = G.soulShards;
+        el.style.opacity = '.3';
+        el.style.pointerEvents = 'none';
+      }
+    };
+    if (G.soulShards < item.cost) { el.style.opacity = '.4'; }
+    items.appendChild(el);
+  });
+}
+
+function leaveShop() { returnToMap(); }
+
+// ===== REST =====
+function openRest() {
+  showScreen('rest-screen');
+  const opts = document.getElementById('rest-options');
+  opts.innerHTML = '';
+  const restOpts = [
+    { name: '🔥 Rest', desc: `Heal ${Math.floor(G.maxHp * 0.3)} HP`, action: () => {
+      G.hp = Math.min(G.maxHp, G.hp + Math.floor(G.maxHp * 0.3));
+    }},
+    { name: '✨ Purify', desc: 'Reduce corruption on all deck cards by 1', action: () => {
+      G.deck.forEach(c => { if (c.corruption > 0) c.corruption = Math.max(0, c.corruption - 1); });
+    }},
+    { name: '⬆ Upgrade', desc: 'Boost a random card\'s base chips by 50%', action: () => {
+      const c = G.deck[Math.floor(Math.random() * G.deck.length)];
+      if (c) { c.baseChips = Math.floor(c.baseChips * 1.5); logMsg(`Upgraded ${cardDisplay(c)}.`); }
+    }},
+  ];
+  restOpts.forEach(opt => {
+    const el = document.createElement('div');
+    el.className = 'rest-option';
+    el.innerHTML = `<div class="opt-name">${opt.name}</div><div class="opt-desc">${opt.desc}</div>`;
+    el.onclick = () => { opt.action(); returnToMap(); };
+    opts.appendChild(el);
+  });
+}
+
+// ===== EVENTS =====
+const EVENTS = [
+  {
+    title: 'The Whispering Grave',
+    text: 'A freshly disturbed grave calls to you. The spectral energy is thick in the air...',
+    choices: [
+      { label: 'Reach in', effect: 'Gain a random rare card, lose 5 HP', action: () => {
+        G.deck.push(makeCard(Math.floor(Math.random()*13)+2, SUITS[Math.floor(Math.random()*4)], 'rare'));
+        G.hp = Math.max(1, G.hp - 5);
+      }},
+      { label: 'Channel the energy', effect: 'Gain 8 Soul Shards', action: () => { G.soulShards += 8; }},
+      { label: 'Walk away', effect: 'Nothing happens', action: () => {} }
+    ]
+  },
+  {
+    title: 'The Bone Merchant',
+    text: 'A skeletal figure offers you a deal, bones clicking as it gestures to its wares...',
+    choices: [
+      { label: 'Trade 10 HP for power', effect: 'Lose 10 HP, gain 1 Bone Token + 5 Shards', action: () => {
+        G.hp = Math.max(1, G.hp - 10); G.boneTokens++; G.soulShards += 5;
+      }},
+      { label: 'Offer a card', effect: 'Remove top deck card, gain 12 Shards', action: () => {
+        if (G.deck.length > 5) { G.deck.pop(); G.soulShards += 12; }
+      }},
+      { label: 'Decline', effect: 'Nothing happens', action: () => {} }
+    ]
+  },
+  {
+    title: 'Spectral Fountain',
+    text: 'Ethereal water flows upward from a cracked stone basin. Its glow pulses with necromantic energy...',
+    choices: [
+      { label: 'Drink deeply', effect: 'Heal to full, but gain 1 Corruption on 3 random cards', action: () => {
+        G.hp = G.maxHp;
+        for (let i = 0; i < 3 && G.deck.length > 0; i++) {
+          const c = G.deck[Math.floor(Math.random() * G.deck.length)];
+          c.corruption = Math.min(5, c.corruption + 1);
+        }
+      }},
+      { label: 'Splash on cards', effect: 'All graveyard cards gain +5 spectral power', action: () => {
+        G.graveyard.forEach(c => c.spectralPower += 5);
+      }},
+      { label: 'Leave it', effect: 'Gain 3 Soul Shards', action: () => { G.soulShards += 3; }}
+    ]
+  }
+];
+
+function openEvent() {
+  showScreen('event-screen');
+  const event = EVENTS[Math.floor(Math.random() * EVENTS.length)];
+  const content = document.getElementById('event-content');
+  content.innerHTML = `<h2>${event.title}</h2><div class="event-text">${event.text}</div><div class="event-choices"></div>`;
+  const choicesDiv = content.querySelector('.event-choices');
+  event.choices.forEach(choice => {
+    const el = document.createElement('div');
+    el.className = 'event-choice';
+    el.innerHTML = `<div class="choice-label">${choice.label}</div><div class="choice-effect">${choice.effect}</div>`;
+    el.onclick = () => { choice.action(); returnToMap(); };
+    choicesDiv.appendChild(el);
+  });
+}
+
+// ===== GAME OVER =====
+function gameOver() {
+  showScreen('gameover-screen');
+  document.getElementById('gameover-stats').textContent =
+    `Act ${G.act} | Encounters: ${G.encountersWon} | Damage: ${G.totalDamageDealt} | Deck: ${G.deck.length} cards`;
+}
+
+// ===== COMBAT LOG =====
+function clearLog() {
+  document.getElementById('combat-log').innerHTML = '';
+}
+
+function logMsg(msg, cls = '') {
+  const log = document.getElementById('combat-log');
+  const entry = document.createElement('div');
+  entry.className = `log-entry ${cls}`;
+  entry.textContent = msg;
+  log.appendChild(entry);
+  log.scrollTop = log.scrollHeight;
+}
+
+// ===== KEYBOARD SHORTCUTS =====
+document.addEventListener('keydown', e => {
+  if (!G.inCombat) return;
+  if (e.key === 'Enter' || e.key === 'p') playHand();
+  if (e.key === 'd') discardSelected();
+  if (e.key === 'e') endPlayerTurn();
+  if (e.key === 'n') openNecromancy();
+  if (e.key === 'Escape') closeNecromancy();
+});
+</script>
+</body>
+</html>
